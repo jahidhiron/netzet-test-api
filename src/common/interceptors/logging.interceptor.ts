@@ -11,6 +11,14 @@ import { AppLogger } from '../logger/logger.service';
 export class LoggingInterceptor implements NestInterceptor {
   constructor(private readonly logger: AppLogger) {}
 
+  /**
+   * Intercepts incoming HTTP requests and logs method, URL, execution time, IP, and user agent.
+   * This is helpful for tracking request performance and usage analytics.
+   *
+   * @param context - The execution context for the request.
+   * @param next - The next handler in the request pipeline.
+   * @returns Observable of the response stream.
+   */
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const { method, originalUrl, ip } = request;
@@ -22,7 +30,7 @@ export class LoggingInterceptor implements NestInterceptor {
         const duration = Date.now() - now;
         this.logger.log(
           `[${method}] ${originalUrl} - ${duration}ms | IP: ${ip} | Agent: ${userAgent}`,
-          'HTTP_SUCCESS',
+          'HTTP_SUCCESS', 
         );
       }),
     );

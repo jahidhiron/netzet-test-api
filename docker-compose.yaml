@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  netzet-test-api:
+    build:
+      context: .
+      # args:
+      #   NODE_ENV: ${NODE_ENV}
+    ports:
+      - '${PORT}:${PORT}'
+    networks:
+      - app-network
+    env_file:
+      - ${ENV_FILE_NAME}
+    command: ${STARTUP_COMMAND}
+
+networks:
+  app-network:
+    driver: bridge

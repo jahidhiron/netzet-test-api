@@ -1,32 +1,50 @@
+// src/logger/winston.config.ts
 import { utilities as nestWinstonModuleUtilities } from 'nest-winston';
 import * as winston from 'winston';
 import * as path from 'path';
+import { ConfigService } from '@nestjs/config';
 
-const logDir = 'logs';
+export const createWinstonConfig = (configService: ConfigService): winston.LoggerOptions => {
+  const prod = configService.get<string>('prod');
 
-export const winstonConfig: winston.LoggerOptions = {
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json(),
-  ),
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        nestWinstonModuleUtilities.format.nestLike('App', {
-          prettyPrint: true,
-        }),
-      ),
-    }),
-    new winston.transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-    }),
-    new winston.transports.File({
-      filename: path.join(logDir, 'success.log'),
-      level: 'info',
-    }),
-  ],
+  const onlyHttpSuccess = winston.format((info) =>
+    info.context === 'HTTP_SUCCESS' ? info : false,
+  );
+
+  const onlyErrors = winston.format((info) =>
+    info.level === 'error' ? info : false,
+  );
+
+  return {
+    transports: [
+      new winston.transports.Console({
+        level: prod ? 'info' : 'debug',
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.colorize(),
+          nestWinstonModuleUtilities.format.nestLike('App', { prettyPrint: true }),
+        ),
+      }),
+
+      new winston.transports.File({
+        filename: path.join('logs', 'error.log'),
+        level: 'error',
+        format: winston.format.combine(
+          onlyErrors(),
+          winston.format.timestamp(),
+          winston.format.json(),
+        ),
+      }),
+
+      new winston.transports.File({
+        filename: path.join('logs', 'success.log'),
+        level: 'info',
+        format: winston.format.combine(
+          onlyHttpSuccess(),
+          winston.format.timestamp(),
+          winston.format.json(),
+        ),
+      }),
+    ],
+  };
 };
