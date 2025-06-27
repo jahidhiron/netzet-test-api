@@ -3,4 +3,4 @@ export const ignoredLogPaths = [
   '/robots.txt',
   '/health',
   /^\/\.well-known\//,
-];;
+];

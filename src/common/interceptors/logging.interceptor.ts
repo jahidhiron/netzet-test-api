@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { AppLogger } from '../logger/logger.service';
+import { Request } from 'express';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -20,17 +21,23 @@ export class LoggingInterceptor implements NestInterceptor {
    * @returns Observable of the response stream.
    */
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
-    const { method, originalUrl, ip } = request;
-    const userAgent = request.headers['user-agent'];
+    const request = context.switchToHttp().getRequest<Request>();
+    const method = request.method;
+    const url = request.originalUrl || request.url;
+    const ip =
+      (request.headers['x-forwarded-for'] as string) ||
+      request.ip ||
+      request.socket?.remoteAddress ||
+      'unknown';
+    const userAgent = request.headers['user-agent'] || 'unknown';
     const now = Date.now();
 
     return next.handle().pipe(
       tap(() => {
         const duration = Date.now() - now;
         this.logger.log(
-          `[${method}] ${originalUrl} - ${duration}ms | IP: ${ip} | Agent: ${userAgent}`,
-          'HTTP_SUCCESS', 
+          `[${method}] ${url} - ${duration}ms | IP: ${ip} | Agent: ${userAgent}`,
+          'HTTP_SUCCESS',
         );
       }),
     );

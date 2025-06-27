@@ -1,10 +1,11 @@
-// src/logger/winston.config.ts
 import { utilities as nestWinstonModuleUtilities } from 'nest-winston';
 import * as winston from 'winston';
 import * as path from 'path';
 import { ConfigService } from '@nestjs/config';
 
-export const createWinstonConfig = (configService: ConfigService): winston.LoggerOptions => {
+export const createWinstonConfig = (
+  configService: ConfigService,
+): winston.LoggerOptions => {
   const prod = configService.get<string>('prod');
 
   const onlyHttpSuccess = winston.format((info) =>
@@ -17,15 +18,19 @@ export const createWinstonConfig = (configService: ConfigService): winston.Logge
 
   return {
     transports: [
+      // Console transport
       new winston.transports.Console({
         level: prod ? 'info' : 'debug',
         format: winston.format.combine(
           winston.format.timestamp(),
           winston.format.colorize(),
-          nestWinstonModuleUtilities.format.nestLike('App', { prettyPrint: true }),
+          nestWinstonModuleUtilities.format.nestLike('App', {
+            prettyPrint: true,
+          }),
         ),
       }),
 
+      // File transports for error
       new winston.transports.File({
         filename: path.join('logs', 'error.log'),
         level: 'error',
@@ -36,6 +41,7 @@ export const createWinstonConfig = (configService: ConfigService): winston.Logge
         ),
       }),
 
+      // File transports for success
       new winston.transports.File({
         filename: path.join('logs', 'success.log'),
         level: 'info',

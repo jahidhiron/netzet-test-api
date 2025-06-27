@@ -3,6 +3,7 @@ import {
   Catch,
   ArgumentsHost,
   HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AppLogger } from '../logger/logger.service';
@@ -12,27 +13,37 @@ import { ignoredLogPaths } from '../logger';
 export class HttpErrorFilter implements ExceptionFilter {
   constructor(private readonly logger: AppLogger) {}
 
-  /**
-   * Handles all HttpExceptions thrown in the application.
-   * Logs error details unless the request path is in the ignored list,
-   * and returns a structured JSON response to the client.
-   *
-   * @param exception - The thrown HttpException instance.
-   * @param host - The arguments host containing context.
-   */
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const status = exception.getStatus();
-    const errorResponse = exception.getResponse();
-    const message =
-      typeof errorResponse === 'string'
-        ? errorResponse
-        : (errorResponse as any).message;
+    const status: number = exception.getStatus
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    // Skip logging if the URL matches any ignored log paths
+    const errorResponse = exception.getResponse();
+
+    // Extract message
+    let message: string | string[] | undefined;
+
+    if (typeof errorResponse === 'string') {
+      message = errorResponse;
+    } else if (
+      errorResponse &&
+      typeof errorResponse === 'object' &&
+      ('message' in errorResponse || 'messages' in errorResponse)
+    ) {
+      if ('message' in errorResponse) {
+        message = (errorResponse as { message?: string | string[] }).message;
+      } else if ('messages' in errorResponse) {
+        message = (errorResponse as { messages?: string | string[] }).messages;
+      }
+    } else {
+      message = undefined;
+    }
+
+    // Skip logging
     if (
       ignoredLogPaths.some((path) =>
         typeof path === 'string'
@@ -43,15 +54,20 @@ export class HttpErrorFilter implements ExceptionFilter {
       return response.status(status).send();
     }
 
-    // Log the error with method, URL, status, and stack trace
+    const trace = HttpStatus.INTERNAL_SERVER_ERROR
+      ? exception.stack
+      : undefined;
+
     this.logger.error(
-      `[${request.method}] ${request.url} → ${status} | Message: ${JSON.stringify(message)}`,
-      exception.stack,
-      'HTTP_ERROR', 
+      `[${request.method}] ${request.url} → ${status} | Message: ${JSON.stringify(
+        message,
+      )}`,
+      trace,
+      'HTTP_ERROR',
     );
 
-    // Send structured error response
     response.status(status).json({
+      success: false,
       statusCode: status,
       path: request.url,
       method: request.method,

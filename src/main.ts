@@ -6,60 +6,66 @@ import * as basicAuth from 'express-basic-auth';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { AppLogger, HttpErrorFilter, LoggingInterceptor } from './common';
-import { LOG_DIR } from './shared';
+import {
+  ALLOW_METHODS,
+  API_PREFIX,
+  API_VERSION,
+  LOG_DIR,
+  SWAGGER_PATH,
+} from './shared';
 import { VersioningType } from '@nestjs/common';
-import { setupSwagger } from './swagger'; 
+import { setupSwagger } from './swagger';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  // create logs directory
+  // Logs directory
   const logDir = path.join(__dirname, '..', LOG_DIR);
   if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir);
   }
 
-  // Create Nest app with buffered logs to capture logs before logger instantiation
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // Setup ConfigService to get env variables
   const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT') as number;
+  const swaggerUser = configService.get<string>('swaggerUser') as string;
+  const swaggerPassword = configService.get<string>(
+    'swaggerPassword',
+  ) as string;
 
-  // Setup your custom logger
+  // Logger
   const logger = app.get(AppLogger);
   app.useLogger(logger);
 
-  // Enable security middleware
+  // Security middleware
   app.use(helmet());
 
-  // Enable CORS 
+  // CORS
   app.enableCors({
     origin: configService.get<string>('corsOrigin')?.split(',') || '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    methods: ALLOW_METHODS,
     credentials: true,
   });
 
-  // Add global prefix '/api'
-  app.setGlobalPrefix('api');
+  // API prefix
+  app.setGlobalPrefix(API_PREFIX, { exclude: [`/${SWAGGER_PATH}`] });
 
-  // Enable global versioning 
+  // API Versioning
   app.enableVersioning({
     type: VersioningType.URI,
-    defaultVersion: '1',
+    defaultVersion: API_VERSION,
   });
 
-  // Global interceptors and filters for logging and error handling
+  // Global interceptors and filters
   app.useGlobalInterceptors(new LoggingInterceptor(logger));
   app.useGlobalFilters(new HttpErrorFilter(logger));
 
   // Graceful shutdown hooks
   app.enableShutdownHooks();
 
-  // Setup Basic Auth for Swagger docs
-  const swaggerUser = configService.get<string>('swaggerUser') as string;
-  const swaggerPassword = configService.get<string>('swaggerPassword') as string;
-
+  // Setup Swagger
   app.use(
-    '/api-docs',
+    `/${SWAGGER_PATH}`,
     basicAuth({
       challenge: true,
       users: {
@@ -68,14 +74,10 @@ async function bootstrap() {
       unauthorizedResponse: () => 'Unauthorized',
     }),
   );
-
-  // Setup Swagger docs
   setupSwagger(app);
 
   // Start server
-  const port = configService.get<number>('PORT') as number;
   await app.listen(port);
-
   logger.log(`Application started on port ${port}`, 'Bootstrap');
 }
 

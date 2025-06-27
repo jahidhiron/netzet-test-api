@@ -11,7 +11,11 @@ export class AppLogger implements LoggerService {
   }
 
   error(message: string, trace?: string, context?: string) {
-    this.logger.error(message, { context, trace });
+    if (trace) {
+      this.logger.error(message, { context });
+    } else {
+      this.logger.error(message, { context, trace });
+    }
   }
 
   warn(message: string, context?: string) {

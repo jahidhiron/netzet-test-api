@@ -1,11 +1,9 @@
-version: "3.8"
-
 services:
   netzet-test-api:
     build:
       context: .
-      # args:
-      #   NODE_ENV: ${NODE_ENV}
+      args:
+        NODE_ENV: ${NODE_ENV}
     ports:
       - '${PORT}:${PORT}'
     networks:
@@ -13,6 +11,7 @@ services:
     env_file:
       - ${ENV_FILE_NAME}
     command: ${STARTUP_COMMAND}
+    restart: always
 
 networks:
   app-network:

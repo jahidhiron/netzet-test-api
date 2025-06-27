@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { configuration } from './config';
 import { WinstonModule } from 'nest-winston';
-import { AppLogger, createWinstonConfig,  } from './common';
+import { AppLogger, createWinstonConfig } from './common';
 
 @Module({
   imports: [
